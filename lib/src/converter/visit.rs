@@ -370,7 +370,7 @@ impl<'a, T: Turtle> XmlVisitor for ConversionVisitor<'a, T> {
             }
         }
 
-        self.name_stack.push(node_name(&node));
+        self.name_stack.push(node_name(&node,&self._config.extra_attribute_name));
     }
 
     fn visit_exit(&mut self, node: Node) {
