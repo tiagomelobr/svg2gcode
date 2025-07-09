@@ -52,6 +52,7 @@ impl<'a> TryInto<Settings> for &'a FormState {
                     self.origin[0].clone().transpose()?,
                     self.origin[1].clone().transpose()?,
                 ],
+		extra_attribute_name: None,
             },
             machine: MachineConfig {
                 supported_functionality: SupportedFunctionality {
