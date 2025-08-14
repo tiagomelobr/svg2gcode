@@ -1,0 +1,12 @@
+# Do not publish Rust source or build config
+Cargo.toml
+src/
+
+# Allow ALL generated pkg artifacts (leave empty otherwise)
+!svg2gcode_wasm_bg.wasm
+!svg2gcode_wasm_bg.js
+!svg2gcode_wasm_bg.wasm.d.ts
+!svg2gcode_wasm.js
+!svg2gcode_wasm.d.ts
+!package.json
+!README.md

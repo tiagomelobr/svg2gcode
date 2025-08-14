@@ -1,7 +1,8 @@
 /target
 **/*.rs.bk
 ./*.gcode
-pkg/
+# Only ignore top-level build output directory named pkg, allow nested crate pkg outputs
+/pkg/
 dist
 lib/approx_circle.svg
 **/out

@@ -63,6 +63,19 @@ jobs:
         working-directory: crates/svg2gcode-wasm
         run: npm run build:wasm
 
+      - name: Verify build artifacts present
+        working-directory: crates/svg2gcode-wasm
+        run: |
+          ls -al pkg
+          test -f pkg/svg2gcode_wasm_bg.wasm || { echo 'WASM file missing'; exit 1; }
+          size=$(stat -c%s pkg/svg2gcode_wasm_bg.wasm 2>/dev/null || wc -c < pkg/svg2gcode_wasm_bg.wasm)
+            
+          if [ "$size" -lt 10000 ]; then
+            echo "Unexpectedly small wasm file ($size bytes)"; exit 1; fi
+          echo "WASM size OK: $size bytes"
+          # Pre-pack preview
+          (cd pkg && npm pack --dry-run)
+
       - name: Pack (validation)
         working-directory: crates/svg2gcode-wasm
         run: |
