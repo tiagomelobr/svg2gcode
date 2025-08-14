@@ -19,6 +19,8 @@ pub trait Turtle: Debug {
     fn begin(&mut self);
     fn end(&mut self);
     fn comment(&mut self, comment: String);
+    /// Hook called between sibling SVG group (layer) elements
+    fn between_layers(&mut self) {}
     fn move_to(&mut self, to: Point<f64>);
     fn line_to(&mut self, to: Point<f64>);
     fn arc(&mut self, svg_arc: SvgArc<f64>);

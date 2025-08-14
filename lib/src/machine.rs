@@ -31,6 +31,7 @@ pub struct Machine<'input> {
     tool_off_sequence: Snippet<'input>,
     program_begin_sequence: Snippet<'input>,
     program_end_sequence: Snippet<'input>,
+    between_layers_sequence: Snippet<'input>,
     /// Empty snippet used to provide the same iterator type when a sequence must be empty
     empty_snippet: Snippet<'input>,
 }
@@ -43,6 +44,8 @@ pub struct MachineConfig {
     pub tool_off_sequence: Option<String>,
     pub begin_sequence: Option<String>,
     pub end_sequence: Option<String>,
+    /// G-Code sequence inserted between sibling SVG groups (layers)
+    pub between_layers_sequence: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
@@ -61,6 +64,7 @@ impl<'input> Machine<'input> {
         tool_off_sequence: Option<Snippet<'input>>,
         program_begin_sequence: Option<Snippet<'input>>,
         program_end_sequence: Option<Snippet<'input>>,
+        between_layers_sequence: Option<Snippet<'input>>,
     ) -> Self {
         let empty_snippet = snippet_parser("").expect("empty string is a valid snippet");
         Self {
@@ -69,6 +73,7 @@ impl<'input> Machine<'input> {
             tool_off_sequence: tool_off_sequence.unwrap_or_else(|| empty_snippet.clone()),
             program_begin_sequence: program_begin_sequence.unwrap_or_else(|| empty_snippet.clone()),
             program_end_sequence: program_end_sequence.unwrap_or_else(|| empty_snippet.clone()),
+            between_layers_sequence: between_layers_sequence.unwrap_or_else(|| empty_snippet.clone()),
             empty_snippet,
             tool_state: Default::default(),
             distance_mode: Default::default(),
@@ -107,6 +112,11 @@ impl<'input> Machine<'input> {
     /// Output user-defined teardown gcode
     pub fn program_end(&self) -> impl Iterator<Item = Token<'input>> + '_ {
         self.program_end_sequence.iter_emit_tokens()
+    }
+
+    /// Output user-defined sequence between layers/groups
+    pub fn between_layers(&self) -> impl Iterator<Item = Token<'input>> + '_ {
+        self.between_layers_sequence.iter_emit_tokens()
     }
 
     /// Output absolute distance field if mode was relative or unknown.

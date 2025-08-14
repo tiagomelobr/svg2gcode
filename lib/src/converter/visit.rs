@@ -379,5 +379,24 @@ impl<'a, T: Turtle> XmlVisitor for ConversionVisitor<'a, T> {
         if node.tag_name().name() == SVG_TAG_NAME {
             self.viewport_dim_stack.pop();
         }
+        // Insert user-defined sequence between sibling groups (layers)
+        if node.tag_name().name() == GROUP_TAG_NAME {
+            if let Some(parent) = node.parent() {
+                let mut seen_self = false;
+                let mut insert = false;
+                for sib in parent.children() {
+                    if !should_render_node(sib) { continue; }
+                    if !seen_self {
+                        if sib == node { seen_self = true; }
+                        continue;
+                    } else {
+                        // First renderable sibling after this group
+                        if sib.has_tag_name(GROUP_TAG_NAME) { insert = true; }
+                        break;
+                    }
+                }
+                if insert { self.terrarium.turtle.between_layers(); }
+            }
+        }
     }
 }

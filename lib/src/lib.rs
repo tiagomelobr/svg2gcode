@@ -130,6 +130,7 @@ mod test {
             None,
             None,
             None,
+            None,
         );
         converter::svg2program(&document, &config, options, machine)
     }
@@ -307,6 +308,7 @@ mod test {
               "tool_on_sequence": null,
               "tool_off_sequence": null,
               "begin_sequence": null,
+              "between_layers_sequence": null,
               "end_sequence": null
             },
             "postprocess": {
@@ -337,6 +339,7 @@ mod test {
               "tool_on_sequence": null,
               "tool_off_sequence": null,
               "begin_sequence": null,
+              "between_layers_sequence": null,
               "end_sequence": null
             },
             "postprocess": { }
@@ -362,6 +365,7 @@ mod test {
               "tool_on_sequence": null,
               "tool_off_sequence": null,
               "begin_sequence": null,
+              "between_layers_sequence": null,
               "end_sequence": null
             },
             "postprocess": {
@@ -390,6 +394,7 @@ mod test {
               "tool_on_sequence": null,
               "tool_off_sequence": null,
               "begin_sequence": null,
+              "between_layers_sequence": null,
               "end_sequence": null
             },
             "postprocess": {
@@ -419,6 +424,7 @@ mod test {
               "tool_on_sequence": null,
               "tool_off_sequence": null,
               "begin_sequence": null,
+              "between_layers_sequence": null,
               "end_sequence": null
             },
             "postprocess": {

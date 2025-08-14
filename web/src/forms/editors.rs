@@ -96,6 +96,12 @@ gcode_input! {
         end_sequence,
         settings.machine.end_sequence,
     }
+    BetweenLayersSequence {
+        "Between Layers Sequence",
+        "G-Code inserted between sibling SVG groups (layers)",
+        between_layers_sequence,
+        settings.machine.between_layers_sequence,
+    }
 }
 
 // TODO: make a nice, syntax highlighting editor for g-code.

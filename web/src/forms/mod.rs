@@ -58,6 +58,11 @@ pub fn settings_form() -> Html {
             .as_ref()
             .map(Result::is_err)
             .unwrap_or(false);
+        || form_state
+            .between_layers_sequence
+            .as_ref()
+            .map(Result::is_err)
+            .unwrap_or(false);
 
     let close_ref = use_node_ref();
 
@@ -155,6 +160,9 @@ pub fn settings_form() -> Html {
                     </div>
                     <div class="column col-12">
                         <EndSequenceInput/>
+                    </div>
+                    <div class="column col-12">
+                        <BetweenLayersSequenceInput/>
                     </div>
                     <div class="column col-6 col-sm-12">
                         <FormGroup>

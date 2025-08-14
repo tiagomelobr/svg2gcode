@@ -14,3 +14,14 @@ pub struct PostprocessConfig {
     #[cfg_attr(feature = "serde", serde(default))]
     pub newline_before_comment: bool,
 }
+
+impl From<&PostprocessConfig> for g_code::emit::FormatOptions {
+    fn from(value: &PostprocessConfig) -> Self {
+        Self {
+            checksums: value.checksums,
+            line_numbers: value.line_numbers,
+            newline_before_comment: value.newline_before_comment,
+            ..Default::default()
+        }
+    }
+}

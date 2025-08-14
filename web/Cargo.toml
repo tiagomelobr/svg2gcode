@@ -11,6 +11,7 @@ license.workspace = true
 [dependencies]
 wasm-bindgen = "0.2"
 svg2gcode = { path = "../lib", version = "0.3.2", features = ["serde"] }
+svg2gcode-wasm = { path = "../crates/svg2gcode-wasm" }
 roxmltree.workspace = true
 g-code.workspace = true
 codespan-reporting = "0.11"
@@ -22,6 +23,7 @@ svgtypes.workspace = true
 serde_json.workspace = true
 thiserror = "1.0"
 zip = { version = "0.6", default-features = false }
+wasm-bindgen-test = "0.3.34"
 
 yew = { version = "0.21", features = ["csr"] }
 yewdux = "0.11"
@@ -32,3 +34,4 @@ gloo-timers = "0.3"
 base64 = "0.22"
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
+

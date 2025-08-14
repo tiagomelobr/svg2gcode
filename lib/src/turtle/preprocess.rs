@@ -15,6 +15,8 @@ impl Turtle for PreprocessTurtle {
 
     fn comment(&mut self, _comment: String) {}
 
+    fn between_layers(&mut self) {}
+
     fn move_to(&mut self, to: Point<f64>) {
         self.bounding_box = Box2D::from_points([self.bounding_box.min, self.bounding_box.max, to]);
     }

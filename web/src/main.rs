@@ -9,7 +9,7 @@ use g_code::{
     parse::snippet_parser,
 };
 use js_sys::Date;
-use log::Level;
+use log::{info, Level};
 use roxmltree::{Document, ParsingOptions};
 use svg2gcode::{svg2program, ConversionOptions, Machine};
 use yew::prelude::*;
@@ -97,6 +97,14 @@ fn app() -> Html {
                         .settings
                         .machine
                         .end_sequence
+                        .as_deref()
+                        .map(snippet_parser)
+                        .transpose()
+                        .unwrap(),
+                    app_store
+                        .settings
+                        .machine
+                        .between_layers_sequence
                         .as_deref()
                         .map(snippet_parser)
                         .transpose()
@@ -272,5 +280,7 @@ fn app_container() -> Html {
 
 fn main() {
     wasm_logger::init(wasm_logger::Config::new(Level::Info));
+    info!("{}", svg2gcode_wasm::param_schema_json());
     yew::Renderer::<AppContainer>::new().render();
 }
+

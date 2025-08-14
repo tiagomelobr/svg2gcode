@@ -1,0 +1,44 @@
+{
+  "name": "svg2gcode-wasm",
+  "version": "0.1.0",
+  "description": "WASM bindings for svg2gcode: convert SVG vector graphics to G-Code in the browser or Node.js",
+  "license": "MIT",
+  "author": "svg2gcode contributors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tiagomelobr/svg2gcode.git",
+    "directory": "crates/svg2gcode-wasm"
+  },
+  "homepage": "https://github.com/tiagomelobr/svg2gcode#readme",
+  "bugs": {
+    "url": "https://github.com/tiagomelobr/svg2gcode/issues"
+  },
+  "type": "module",
+  "files": [
+    "pkg"
+  ],
+  "keywords": [
+    "svg",
+    "gcode",
+    "cnc",
+    "plotter",
+    "wasm",
+    "webassembly"
+  ],
+  "scripts": {
+    "build:wasm": "wasm-pack build --target bundler --out-dir pkg --out-name svg2gcode_wasm .",
+    "prepublishOnly": "npm run build:wasm"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "exports": {
+    ".": {
+      "import": "./pkg/svg2gcode_wasm.js",
+      "types": "./pkg/svg2gcode_wasm.d.ts"
+    }
+  },
+  "main": "./pkg/svg2gcode_wasm.js",
+  "module": "./pkg/svg2gcode_wasm.js",
+  "types": "./pkg/svg2gcode_wasm.d.ts"
+}

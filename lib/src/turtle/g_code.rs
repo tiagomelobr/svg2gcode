@@ -77,6 +77,11 @@ impl<'input> Turtle for GCodeTurtle<'input> {
         });
     }
 
+    fn between_layers(&mut self) {
+        self.program.extend(self.machine.between_layers());
+        self.program.extend(self.machine.absolute());
+    }
+
     fn move_to(&mut self, to: Point<f64>) {
         self.tool_off();
         self.program

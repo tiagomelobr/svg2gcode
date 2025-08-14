@@ -19,6 +19,7 @@ pub struct FormState {
     pub tool_off_sequence: Option<Result<String, String>>,
     pub begin_sequence: Option<Result<String, String>>,
     pub end_sequence: Option<Result<String, String>>,
+    pub between_layers_sequence: Option<Result<String, String>>,
     pub checksums: bool,
     pub line_numbers: bool,
     pub newline_before_comment: bool,
@@ -78,6 +79,11 @@ impl<'a> TryInto<Settings> for &'a FormState {
                     .clone()
                     .transpose()
                     .map_err(FormStateConversionError::GCode)?,
+                between_layers_sequence: self
+                    .between_layers_sequence
+                    .clone()
+                    .transpose()
+                    .map_err(FormStateConversionError::GCode)?,
             },
             postprocess: PostprocessConfig {
                 checksums: self.checksums,
@@ -107,6 +113,7 @@ impl From<&Settings> for FormState {
             tool_off_sequence: settings.machine.tool_off_sequence.clone().map(Ok),
             begin_sequence: settings.machine.begin_sequence.clone().map(Ok),
             end_sequence: settings.machine.end_sequence.clone().map(Ok),
+            between_layers_sequence: settings.machine.between_layers_sequence.clone().map(Ok),
             checksums: settings.postprocess.checksums,
             line_numbers: settings.postprocess.line_numbers,
             newline_before_comment: settings.postprocess.newline_before_comment,

@@ -42,6 +42,10 @@ impl<T: Turtle> Turtle for DpiConvertingTurtle<T> {
         self.inner.comment(comment)
     }
 
+    fn between_layers(&mut self) {
+        self.inner.between_layers()
+    }
+
     fn move_to(&mut self, to: Point<f64>) {
         self.inner.move_to(self.point_to_mm(to))
     }

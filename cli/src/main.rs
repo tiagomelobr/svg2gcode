@@ -42,6 +42,9 @@ struct Opt {
     /// G-Code for stopping/idling the machine at the end of the program
     #[arg(alias = "end_sequence", long = "end")]
     end_sequence: Option<String>,
+    /// G-Code sequence inserted between sibling SVG groups/layers
+    #[arg(alias = "between_layers_sequence", long = "between-layers")]
+    between_layers_sequence: Option<String>,
     /// A file path to an SVG, else reads from stdin
     file: Option<PathBuf>,
     /// Output file path (overwrites old files), else writes to stdout
@@ -132,6 +135,9 @@ fn main() -> io::Result<()> {
             }
             if let seq @ Some(_) = opt.end_sequence {
                 machine.end_sequence = seq;
+            }
+            if let seq @ Some(_) = opt.between_layers_sequence {
+                machine.between_layers_sequence = seq;
             }
         }
         {
@@ -264,9 +270,15 @@ fn main() -> io::Result<()> {
             .as_deref()
             .map(snippet_parser)
             .transpose(),
+        settings
+            .machine
+            .between_layers_sequence
+            .as_deref()
+            .map(snippet_parser)
+            .transpose(),
     ];
 
-    let machine = if let [Ok(tool_on_action), Ok(tool_off_action), Ok(program_begin_sequence), Ok(program_end_sequence)] =
+    let machine = if let [Ok(tool_on_action), Ok(tool_off_action), Ok(program_begin_sequence), Ok(program_end_sequence), Ok(between_layers_sequence)] =
         snippets
     {
         Machine::new(
@@ -275,6 +287,7 @@ fn main() -> io::Result<()> {
             tool_off_action,
             program_begin_sequence,
             program_end_sequence,
+            between_layers_sequence,
         )
     } else {
         use codespan_reporting::term::{
@@ -289,6 +302,7 @@ fn main() -> io::Result<()> {
             ("tool_off_sequence", &settings.machine.tool_off_sequence),
             ("begin_sequence", &settings.machine.begin_sequence),
             ("end_sequence", &settings.machine.end_sequence),
+            ("between_layers_sequence", &settings.machine.between_layers_sequence),
         ]
         .iter()
         .enumerate()

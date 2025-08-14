@@ -55,6 +55,9 @@ Options:
       --end <END_SEQUENCE>
           G-Code for stopping/idling the machine at the end of the program
 
+      --between-layers <BETWEEN_LAYERS_SEQUENCE>
+          G-Code inserted between sibling SVG group (layer) elements
+
   -o, --out <OUT>
           Output file path (overwrites old files), else writes to stdout
 
@@ -158,3 +161,40 @@ These go into greater detail on the tool's origins, implementation details, and 
 - [CSS compatible units](https://www.w3.org/TR/css-values/#compat)
 - [RepRap G-code](https://reprap.org/wiki/G-code)
 - [G-Code and M-Code Reference List for Milling](https://www.cnccookbook.com/g-code-m-code-reference-list-cnc-mills/)
+
+## WASM / JavaScript Usage
+
+An npm package is provided for browser/Node.js usage via WebAssembly.
+
+Install:
+
+```bash
+npm install svg2gcode-wasm
+```
+
+Example:
+
+```js
+import init, { convert_svg } from 'svg2gcode-wasm';
+await init();
+const gcode = convert_svg('<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" stroke="black" fill="none"/></svg>', {
+    tolerance: 0.002,
+    feedrate: 300,
+    dpi: 96,
+    origin_x: 0,
+    origin_y: 0,
+    circular_interpolation: false,
+    tool_on_sequence: null,
+    tool_off_sequence: null,
+    begin_sequence: null,
+    end_sequence: null,
+    between_layers_sequence: null,
+    checksums: false,
+    line_numbers: false,
+    newline_before_comment: false
+});
+console.log(gcode);
+```
+
+See `crates/svg2gcode-wasm/README.md` for details and advanced usage.
+

@@ -1,0 +1,90 @@
+name: Publish svg2gcode-wasm to npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (yes/no)'
+        required: false
+        default: 'yes'
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Derive version & dry-run mode
+        id: derive
+        working-directory: crates/svg2gcode-wasm
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}" # e.g. v0.1.0 or v0.1.0-test
+            VERSION="${TAG#v}"
+            echo "Detected tag version: $VERSION"
+            npm pkg set version=$VERSION
+            # Treat tags ending with -test or -rc* as dry-run
+            if [[ "$VERSION" == *-test || "$VERSION" == *-rc* ]]; then
+              echo "DRY_RUN=true" >> $GITHUB_ENV
+            fi
+          fi
+          # workflow_dispatch input overrides
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.dry_run }}" == "yes" ]]; then
+            echo "DRY_RUN=true" >> $GITHUB_ENV
+          fi
+          : "Default to DRY_RUN false if not set"
+          echo DRY_RUN=${DRY_RUN:-false}
+
+      - name: Build wasm package
+        working-directory: crates/svg2gcode-wasm
+        run: npm run build:wasm
+
+      - name: Pack (validation)
+        working-directory: crates/svg2gcode-wasm
+        run: |
+          npm pack --dry-run
+          ls -lh *.tgz || true
+
+      - name: Publish (or dry-run)
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        working-directory: crates/svg2gcode-wasm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Running npm publish --dry-run (no artifacts will be released)";
+            npm publish --access public --dry-run;
+          else
+            echo "Publishing to npm";
+            npm publish --access public;
+          fi
+
+      - name: Upload packaged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: svg2gcode-wasm-pkg
+          path: |
+            crates/svg2gcode-wasm/pkg
+            crates/svg2gcode-wasm/*.tgz
