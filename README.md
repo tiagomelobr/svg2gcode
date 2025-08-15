@@ -198,3 +198,31 @@ console.log(gcode);
 
 See `crates/svg2gcode-wasm/README.md` for details and advanced usage.
 
+## Release / WASM Publish Workflow
+
+When making a change that requires a new WebAssembly package release, follow this exact process to keep versions consistent and reproducible:
+
+1. Implement and test your changes locally.
+2. Bump only the WASM crate version in `crates/svg2gcode-wasm/Cargo.toml` (semantic versioning). Example: `0.1.10 -> 0.1.11`.
+3. Run the full build & tests (including examples if relevant):
+    - `cargo test`
+    - Optionally run a quick conversion sanity check using the CLI or `convert_svg`.
+4. Review the working tree: `git status` must show ONLY the intended changes (source files, the WASM `Cargo.toml`, and updated `Cargo.lock`).
+5. Stage explicitly (avoid `git add .`):
+    - `git add crates/svg2gcode-wasm/Cargo.toml Cargo.lock <changed_source_files>`
+6. Commit with a clear message including the new version tag, e.g.: `feat: <summary>; bump wasm to v0.1.11`.
+7. Create a lightweight tag matching the WASM version prefixed with a lowercase `v` (format: `vMAJOR.MINOR.PATCH`). Example: `git tag v0.1.11`.
+8. Push commit and tag:
+    - `git push origin main`
+    - `git push origin v0.1.11`
+9. (Optional) Publish to npm/crates if part of the release process.
+
+Checklist before tagging:
+- [ ] WASM version bumped (and only that crate’s version)
+- [ ] Tests pass
+- [ ] All required files staged (no unintended changes omitted)
+- [ ] Commit message includes the version
+- [ ] Tag name exactly matches Cargo version with a leading `v`
+
+Never reuse or move tags; always create a new patch/minor/major version as appropriate.
+
