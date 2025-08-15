@@ -183,6 +183,8 @@ const gcode = convert_svg('<svg viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" 
     dpi: 96,
     origin_x: 0,
     origin_y: 0,
+    // Optional: force a minimum arc radius; if omitted uses tolerance * 0.05
+    min_arc_radius: null,
     circular_interpolation: false,
     tool_on_sequence: null,
     tool_off_sequence: null,

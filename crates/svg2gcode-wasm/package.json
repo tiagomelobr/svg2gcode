@@ -1,6 +1,6 @@
 {
   "name": "svg2gcode-wasm",
-  "version": "0.1.2",
+  "version": "0.1.11",
   "description": "WASM bindings for svg2gcode: convert SVG vector graphics to G-Code in the browser or Node.js",
   "license": "MIT",
   "author": "svg2gcode contributors",
