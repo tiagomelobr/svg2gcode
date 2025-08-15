@@ -9,7 +9,6 @@ use svgtypes::Length;
 use uom::si::f64::Length as UomLength;
 use uom::si::length::{inch, millimeter, centimeter, pica_computer};
 
-use self::units::CSS_DEFAULT_DPI;
 use crate::{turtle::*, Machine};
 
 #[cfg(feature = "serde")]
@@ -160,9 +159,10 @@ pub fn svg2program<'a, 'input: 'a>(
     };
 
     // Convert from millimeters to user units
+    // Convert configured origin (in mm) into user units using the *configured* dpi (previously CSS_DEFAULT_DPI caused scaling drift when dpi overridden)
     let origin = config
         .origin
-        .map(|dim| dim.map(|d| UomLength::new::<millimeter>(d).get::<inch>() * CSS_DEFAULT_DPI));
+        .map(|dim| dim.map(|d| UomLength::new::<millimeter>(d).get::<inch>() * config.dpi));
 
     // Precompute bounding box (mm) & viewport size (user units) when needed for alignment/trim/origin
     let (pre_bbox_mm, viewport_user_units) = bounding_box_and_viewport_generator();
