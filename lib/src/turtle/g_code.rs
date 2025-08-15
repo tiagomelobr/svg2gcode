@@ -20,27 +20,58 @@ pub struct GCodeTurtle<'input> {
 impl<'input> GCodeTurtle<'input> {
     fn circular_interpolation(&self, svg_arc: SvgArc<f64>) -> Vec<Token<'input>> {
         debug_assert!((svg_arc.radii.x.abs() - svg_arc.radii.y.abs()).abs() < f64::EPSILON);
-        match (svg_arc.flags.large_arc, svg_arc.flags.sweep) {
-            (false, true) => command!(CounterclockwiseCircularInterpolation {
-                X: svg_arc.to.x,
-                Y: svg_arc.to.y,
-                R: svg_arc.radii.x,
+        // Geometry helpers
+        let from = svg_arc.from;
+        let to = svg_arc.to;
+        let chord = (to - from).length();
+        let radius = svg_arc.radii.x.abs();
+        let arc_struct = svg_arc.to_arc();
+        let sweep_angle = arc_struct.sweep_angle.radians.abs();
+
+        // 1. Fallback to a linear move when arc is too small to be meaningful or numerically stable.
+        //    (radius extremely small OR chord almost zero OR sweep negligible)
+        if radius < self.tolerance * 2.0
+            || chord < self.tolerance * 2.0
+            || sweep_angle < 1e-6
+        {
+            return command!(LinearInterpolation { X: to.x, Y: to.y, F: self.feedrate })
+                .into_token_vec();
+        }
+
+        // 2. Auto-split if (a) SVG flagged large arc OR (b) arc is (near) a semicircle which is
+        //    ill-conditioned for R-mode validation (even though we now emit I/J, splitting keeps centers cleaner).
+        //    Near-semicircle detection: chord ~ 2R OR sweep ~ PI within a tolerance.
+        let near_semi = (chord - 2.0 * radius).abs() / (2.0 * radius) < 1e-5
+            || (sweep_angle - std::f64::consts::PI).abs() < 1e-5;
+        if svg_arc.flags.large_arc || near_semi {
+            let (left, right) = arc_struct.split(0.5);
+            let mut token_vec = self.circular_interpolation(left.to_svg_arc());
+            token_vec.append(&mut self.circular_interpolation(right.to_svg_arc()));
+            return token_vec;
+        }
+
+        // 3. Emit using I/J center offsets (avoids R ambiguity/validation issues in controllers for tight arcs).
+        let center = arc_struct.center;
+        let i = center.x - from.x;
+        let j = center.y - from.y;
+
+        match svg_arc.flags.sweep {
+            true => command!(CounterclockwiseCircularInterpolation {
+                X: to.x,
+                Y: to.y,
+                I: i,
+                J: j,
                 F: self.feedrate,
             })
             .into_token_vec(),
-            (false, false) => command!(ClockwiseCircularInterpolation {
-                X: svg_arc.to.x,
-                Y: svg_arc.to.y,
-                R: svg_arc.radii.x,
+            false => command!(ClockwiseCircularInterpolation {
+                X: to.x,
+                Y: to.y,
+                I: i,
+                J: j,
                 F: self.feedrate,
             })
             .into_token_vec(),
-            (true, _) => {
-                let (left, right) = svg_arc.to_arc().split(0.5);
-                let mut token_vec = self.circular_interpolation(left.to_svg_arc());
-                token_vec.append(&mut self.circular_interpolation(right.to_svg_arc()));
-                token_vec
-            }
         }
     }
 
