@@ -274,6 +274,7 @@ pub fn svg2program<'a, 'input: 'a>(
                 feedrate: config.feedrate,
                 min_arc_radius: config.min_arc_radius.unwrap_or(config.tolerance * 0.05),
                 program: vec![],
+                pending_between_layers: false,
             },
             dpi: config.dpi,
         }),

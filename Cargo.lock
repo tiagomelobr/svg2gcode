@@ -1524,7 +1524,7 @@ dependencies = [
 
 [[package]]
 name = "svg2gcode-wasm"
-version = "0.1.6"
+version = "0.1.10"
 dependencies = [
  "g-code",
  "roxmltree",

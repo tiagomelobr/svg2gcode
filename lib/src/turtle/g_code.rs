@@ -16,6 +16,8 @@ pub struct GCodeTurtle<'input> {
     pub feedrate: f64,
     pub min_arc_radius: f64,
     pub program: Vec<Token<'input>>,
+    // When true, emit the user between-layers sequence right before the next tool_on
+    pub pending_between_layers: bool,
 }
 
 impl<'input> GCodeTurtle<'input> {
@@ -77,6 +79,14 @@ impl<'input> GCodeTurtle<'input> {
     }
 
     fn tool_on(&mut self) {
+        // Inject deferred between-layers sequence (after travel, before tool activation)
+        if self.pending_between_layers {
+            // Add a blank line for readability before between-layers sequence
+            self.program.push(Token::Comment { is_inline: false, inner: std::borrow::Cow::Borrowed("") });
+            self.program.extend(self.machine.between_layers());
+            // Do NOT emit absolute here; the tool_on sequence below will restore absolute
+            self.pending_between_layers = false;
+        }
         self.program.extend(self.machine.tool_on());
         self.program.extend(self.machine.absolute());
     }
@@ -110,8 +120,8 @@ impl<'input> Turtle for GCodeTurtle<'input> {
     }
 
     fn between_layers(&mut self) {
-        self.program.extend(self.machine.between_layers());
-        self.program.extend(self.machine.absolute());
+    // Mark for deferred emission. Actual G-Code emitted right before next tool_on() call.
+    self.pending_between_layers = true;
     }
 
     fn move_to(&mut self, to: Point<f64>) {
