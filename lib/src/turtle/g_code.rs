@@ -14,6 +14,7 @@ pub struct GCodeTurtle<'input> {
     pub machine: Machine<'input>,
     pub tolerance: f64,
     pub feedrate: f64,
+    pub min_arc_radius: f64,
     pub program: Vec<Token<'input>>,
 }
 
@@ -30,8 +31,8 @@ impl<'input> GCodeTurtle<'input> {
 
         // 1. Fallback to a linear move when arc is too small to be meaningful or numerically stable.
         //    (radius extremely small OR chord almost zero OR sweep negligible)
-        if radius < self.tolerance * 2.0
-            || chord < self.tolerance * 2.0
+        if radius < self.min_arc_radius
+            || chord < self.min_arc_radius
             || sweep_angle < 1e-6
         {
             return command!(LinearInterpolation { X: to.x, Y: to.y, F: self.feedrate })

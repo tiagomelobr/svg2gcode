@@ -31,6 +31,10 @@ pub struct ConversionConfig {
     /// Set the origin point in millimeters for this conversion
     #[cfg_attr(feature = "serde", serde(default = "zero_origin"))]
     pub origin: [Option<f64>; 2],
+    /// Minimum arc radius (in mm) below which arcs are converted to lines.
+    /// If `None`, a conservative default derived from tolerance (tolerance * 0.05) is used.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub min_arc_radius: Option<f64>,
     /// Set extra attribute to add when printing node name
     pub extra_attribute_name: Option<String>,
 }
@@ -46,6 +50,7 @@ impl Default for ConversionConfig {
             feedrate: 300.0,
             dpi: 96.0,
             origin: zero_origin(),
+        min_arc_radius: None,
 	    extra_attribute_name : None,
         }
     }
@@ -267,6 +272,7 @@ pub fn svg2program<'a, 'input: 'a>(
                 machine,
                 tolerance: config.tolerance,
                 feedrate: config.feedrate,
+                min_arc_radius: config.min_arc_radius.unwrap_or(config.tolerance * 0.05),
                 program: vec![],
             },
             dpi: config.dpi,
