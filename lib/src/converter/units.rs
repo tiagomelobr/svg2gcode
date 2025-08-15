@@ -6,10 +6,11 @@ use crate::Turtle;
 
 use super::ConversionVisitor;
 
-/// The DPI assumed by CSS is 96.
-///
-/// <https://www.w3.org/TR/css3-values/#absolute-lengths>
-pub const CSS_DEFAULT_DPI: f64 = 96.;
+/// Historically a fixed 96 CSS px per inch was used here, but we now honor the
+/// user-configured DPI (`ConversionConfig.dpi`) so physical units (mm, cm, in,
+/// pt, pc) remain invariant when the caller changes DPI. The old constant is
+/// retained only for reference in documentation; do NOT use it for new code.
+pub const _CSS_REFERENCE_DPI: f64 = 96.;
 
 /// Used to compute percentages correctly
 ///
@@ -46,18 +47,18 @@ impl<'a, T: Turtle> ConversionVisitor<'a, T> {
     /// Absolute lengths are listed in [CSS 4 §6.2](https://www.w3.org/TR/css-values/#absolute-lengths).
     /// Relative lengths in [CSS 4 §6.1](https://www.w3.org/TR/css-values/#relative-lengths) are not supported and will simply be interpreted as millimeters.
     ///
-    /// A default DPI of 96 is used as per [CSS 4 §7.4](https://www.w3.org/TR/css-values/#resolution)
+    /// Uses the caller-configured DPI (default 96) as per [CSS 4 §7.4](https://www.w3.org/TR/css-values/#resolution).
     pub fn length_to_user_units(&self, l: Length, hint: DimensionHint) -> f64 {
         use svgtypes::LengthUnit::*;
         use uom::si::f64::Length;
         use uom::si::length::*;
 
         match l.unit {
-            Cm => Length::new::<centimeter>(l.number).get::<inch>() * CSS_DEFAULT_DPI,
-            Mm => Length::new::<millimeter>(l.number).get::<inch>() * CSS_DEFAULT_DPI,
-            In => Length::new::<inch>(l.number).get::<inch>() * CSS_DEFAULT_DPI,
-            Pc => Length::new::<pica_computer>(l.number).get::<inch>() * CSS_DEFAULT_DPI,
-            Pt => Length::new::<point_computer>(l.number).get::<inch>() * CSS_DEFAULT_DPI,
+            Cm => Length::new::<centimeter>(l.number).get::<inch>() * self._config.dpi,
+            Mm => Length::new::<millimeter>(l.number).get::<inch>() * self._config.dpi,
+            In => Length::new::<inch>(l.number).get::<inch>() * self._config.dpi,
+            Pc => Length::new::<pica_computer>(l.number).get::<inch>() * self._config.dpi,
+            Pt => Length::new::<point_computer>(l.number).get::<inch>() * self._config.dpi,
             // https://www.w3.org/TR/SVG/coords.html#ViewportSpace says None should be treated as Px
             Px | None => l.number,
             Em | Ex => {

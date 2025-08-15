@@ -112,7 +112,7 @@ mod test {
         dimensions: [Option<Length>; 2],
     ) -> Vec<Token<'_>> {
         let config = ConversionConfig::default();
-        let options = ConversionOptions { dimensions };
+    let options = ConversionOptions { dimensions, ..Default::default() };
         let document = roxmltree::Document::parse_with_options(
             input,
             ParsingOptions {
