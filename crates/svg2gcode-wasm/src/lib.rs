@@ -4,7 +4,7 @@ use serde_json;
 use svg2gcode::{
     svg2program, ConversionConfig as CoreConversionConfig, Machine,
     MachineConfig as CoreMachineConfig, PostprocessConfig as CorePostprocessConfig, Settings,
-    SupportedFunctionality as CoreSupportedFunctionality,
+    SupportedFunctionality as CoreSupportedFunctionality, ConversionOptions, HorizontalAlign, VerticalAlign,
 };
 use wasm_bindgen::prelude::*;
 
@@ -95,6 +95,19 @@ pub struct GCodeConversionOptions {
     pub machine: MachineConfig,
     #[serde(flatten)]
     pub postprocess: PostprocessConfig,
+    /// Optional width override (e.g. "210mm"). If provided with height and trim=true acts like paper fit.
+    pub override_width: Option<String>,
+    /// Optional height override (e.g. "297mm").
+    pub override_height: Option<String>,
+    /// Horizontal alignment when an override dimension or trim is applied. left|center|right
+    #[serde(default)]
+    pub h_align: Option<String>,
+    /// Vertical alignment when an override dimension or trim is applied. top|center|bottom
+    #[serde(default)]
+    pub v_align: Option<String>,
+    /// If true, scales tight drawing bbox into the override dimensions (paper style fit).
+    #[serde(default)]
+    pub trim: bool,
 }
 
 impl GCodeConversionOptions {
@@ -131,7 +144,20 @@ pub fn convert_svg(svg_str: &str, options: &JsValue) -> Result<String, String> {
     settings.machine.between_layers_sequence.as_deref().map(g_code::parse::snippet_parser).transpose().unwrap(),
     );
 
-    let gcode_tokens = svg2program(&doc, &settings.conversion, Default::default(), machine);
+    // Build ConversionOptions from overrides
+    let mut dimensions: [Option<svgtypes::Length>; 2] = [None, None];
+    for (i, src) in [options.override_width.as_ref(), options.override_height.as_ref()].into_iter().enumerate() {
+        if let Some(s) = src {
+            if !s.is_empty() {
+                if let Some(first) = svgtypes::LengthListParser::from(s.as_str()).next() { dimensions[i] = Some(first.map_err(|e| e.to_string())?); }
+            }
+        }
+    }
+    let h_align = match options.h_align.as_deref() { Some("center") => HorizontalAlign::Center, Some("right") => HorizontalAlign::Right, _ => HorizontalAlign::Left };
+    let v_align = match options.v_align.as_deref() { Some("center") => VerticalAlign::Center, Some("bottom") => VerticalAlign::Bottom, _ => VerticalAlign::Top };
+    let conv_options = ConversionOptions { dimensions, h_align, v_align, trim: options.trim };
+
+    let gcode_tokens = svg2program(&doc, &settings.conversion, conv_options, machine);
 
     let mut gcode_out = String::new();
     g_code::emit::format_gcode_fmt(

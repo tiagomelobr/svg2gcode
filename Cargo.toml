@@ -1,5 +1,5 @@
 [workspace]
-members = ["lib", "cli", "web", "crates/svg2gcode-wasm"]
+members = ["lib", "cli", "web", "crates/svg2gcode-wasm", "tools/alignment_check"]
 default-members = ["cli"]
 resolver = "2"
 

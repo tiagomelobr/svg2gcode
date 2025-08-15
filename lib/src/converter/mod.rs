@@ -7,7 +7,7 @@ use roxmltree::{Document, Node};
 use serde::{Deserialize, Serialize};
 use svgtypes::Length;
 use uom::si::f64::Length as UomLength;
-use uom::si::length::{inch, millimeter};
+use uom::si::length::{inch, millimeter, centimeter, pica_computer};
 
 use self::units::CSS_DEFAULT_DPI;
 use crate::{turtle::*, Machine};
@@ -63,7 +63,36 @@ pub struct ConversionOptions {
     /// Useful when an SVG does not have a set width and height or you want to override it.
     #[cfg_attr(feature = "serde", serde(with = "length_serde"))]
     pub dimensions: [Option<Length>; 2],
+    /// Horizontal alignment within the (possibly overridden) viewport or target dimensions
+    /// Only applied when an explicit width or height override is provided, or when `trim` is true.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub h_align: HorizontalAlign,
+    /// Vertical alignment within the (possibly overridden) viewport or target dimensions
+    /// Only applied when an explicit width or height override is provided, or when `trim` is true.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub v_align: VerticalAlign,
+    /// If true, scales the drawing's tight bounding box to the provided `dimensions` (paper style fit)
+    /// instead of treating `dimensions` purely as viewport size. Aspect ratio preserved.
+    /// - With both dimensions: uniform scale to fit inside
+    /// - With one dimension: scale so that dimension matches
+    /// - With neither dimension: no effect
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub trim: bool,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+pub enum HorizontalAlign { Left, Center, Right }
+
+impl Default for HorizontalAlign { fn default() -> Self { Self::Left } }
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+pub enum VerticalAlign { Bottom, Center, Top }
+
+impl Default for VerticalAlign { fn default() -> Self { Self::Top } }
 
 /// Maps SVG [`Node`]s and their attributes into operations on a [`Terrarium`]
 #[derive(Debug)]
@@ -107,7 +136,7 @@ pub fn svg2program<'a, 'input: 'a>(
     options: ConversionOptions,
     machine: Machine<'input>,
 ) -> Vec<Token<'input>> {
-    let bounding_box_generator = || {
+    let bounding_box_and_viewport_generator = || {
         let mut visitor = ConversionVisitor {
             terrarium: Terrarium::new(DpiConvertingTurtle {
                 inner: PreprocessTurtle::default(),
@@ -123,7 +152,11 @@ pub fn svg2program<'a, 'input: 'a>(
         visit::depth_first_visit(doc, &mut visitor);
         visitor.end();
 
-        visitor.terrarium.turtle.inner.bounding_box
+        (
+            visitor.terrarium.turtle.inner.bounding_box,
+            // Last pushed viewport dims (user units) if any
+            visitor.viewport_dim_stack.last().copied().unwrap_or([1.0, 1.0]),
+        )
     };
 
     // Convert from millimeters to user units
@@ -131,22 +164,103 @@ pub fn svg2program<'a, 'input: 'a>(
         .origin
         .map(|dim| dim.map(|d| UomLength::new::<millimeter>(d).get::<inch>() * CSS_DEFAULT_DPI));
 
+    // Precompute bounding box (mm) & viewport size (user units) when needed for alignment/trim/origin
+    let (pre_bbox_mm, viewport_user_units) = bounding_box_and_viewport_generator();
+
+    // Convert viewport size to mm (DPI based) for alignment math
+    let viewport_mm = viewport_user_units.map(|v| {
+        // user units -> inches -> mm (mirrors DpiConvertingTurtle logic for coordinates)
+        UomLength::new::<inch>(v / config.dpi).get::<millimeter>()
+    });
+
     let origin_transform = match origin {
         [None, Some(origin_y)] => {
-            let bb = bounding_box_generator();
-            Transform2D::translation(0., origin_y - bb.min.y)
+            Transform2D::translation(0., origin_y - pre_bbox_mm.min.y)
         }
         [Some(origin_x), None] => {
-            let bb = bounding_box_generator();
-            Transform2D::translation(origin_x - bb.min.x, 0.)
+            Transform2D::translation(origin_x - pre_bbox_mm.min.x, 0.)
         }
         [Some(origin_x), Some(origin_y)] => {
-            let bb = bounding_box_generator();
-            Transform2D::translation(origin_x - bb.min.x, origin_y - bb.min.y)
+            Transform2D::translation(
+                origin_x - pre_bbox_mm.min.x,
+                origin_y - pre_bbox_mm.min.y,
+            )
         }
         [None, None] => Transform2D::identity(),
     };
 
+    // Alignment & optional trim scaling
+    let mut post_transform = Transform2D::identity();
+
+    if options.trim || options.dimensions.iter().any(|d| d.is_some()) {
+        // Target sizes in mm if provided
+        let target_mm: [Option<f64>; 2] = options.dimensions.map(|opt_l| opt_l.map(|l| {
+            // length in user units (already converted earlier when applying overrides) -> user units numeric
+            // We stored viewport_user_units already incorporating overrides; for bbox scaling we only need numeric interpret of provided dimension
+            // Re-parse like units::length_to_user_units, but simpler: rely on what was parsed earlier: l.number with unit
+            match l.unit { svgtypes::LengthUnit::Mm => l.number,
+                svgtypes::LengthUnit::Cm => UomLength::new::<centimeter>(l.number).get::<millimeter>(),
+                svgtypes::LengthUnit::In => UomLength::new::<inch>(l.number).get::<millimeter>(),
+                svgtypes::LengthUnit::Px => UomLength::new::<inch>(l.number / config.dpi).get::<millimeter>(),
+                svgtypes::LengthUnit::Pt => UomLength::new::<inch>(l.number / 72.0).get::<millimeter>(),
+                svgtypes::LengthUnit::Pc => UomLength::new::<pica_computer>(l.number).get::<millimeter>(),
+                _ => UomLength::new::<inch>(l.number / config.dpi).get::<millimeter>() }
+        }));
+
+    let mut bbox = pre_bbox_mm;
+        let bbox_w = bbox.width();
+        let bbox_h = bbox.height();
+        let mut scale = 1.0;
+    if options.trim {
+            match (target_mm[0], target_mm[1]) {
+                (Some(w), Some(h)) if bbox_w > 0. && bbox_h > 0. => {
+                    scale = (w / bbox_w).min(h / bbox_h);
+                }
+                (Some(w), None) if bbox_w > 0. => scale = w / bbox_w,
+                (None, Some(h)) if bbox_h > 0. => scale = h / bbox_h,
+                _ => {}
+            }
+            post_transform = Transform2D::scale(scale, scale).then(&post_transform);
+            // Scaled bbox dims for alignment leftover
+            bbox = lyon_geom::Box2D::new(
+                lyon_geom::point(bbox.min.x * scale, bbox.min.y * scale),
+                lyon_geom::point(bbox.max.x * scale, bbox.max.y * scale),
+            );
+        }
+
+        // Determine alignment within either: viewport_mm (no trim) or target_mm (trim with explicit dims)
+        let container_w = if options.trim {
+            target_mm[0].unwrap_or(bbox.width())
+        } else {
+            viewport_mm[0]
+        };
+        let container_h = if options.trim {
+            target_mm[1].unwrap_or(bbox.height())
+        } else {
+            viewport_mm[1]
+        };
+
+        // Horizontal alignment
+    let dx_mm = match options.h_align {
+            HorizontalAlign::Left => -bbox.min.x,
+            HorizontalAlign::Center => (container_w - bbox.width()) / 2. - bbox.min.x,
+            HorizontalAlign::Right => (container_w - bbox.width()) - bbox.min.x,
+        };
+        // Vertical alignment (Top is default; coordinate system has origin at bottom-left after existing pre transforms)
+    let dy_mm = match options.v_align {
+            VerticalAlign::Bottom => -bbox.min.y,
+            VerticalAlign::Center => (container_h - bbox.height()) / 2. - bbox.min.y,
+            VerticalAlign::Top => (container_h - bbox.height()) - bbox.min.y,
+        };
+    // Current transform stack is in user units; our math was done in mm (pre_bbox_mm).
+    let mm_per_user_unit = UomLength::new::<inch>(1.0 / config.dpi).get::<millimeter>();
+    let dx = dx_mm / mm_per_user_unit;
+    let dy = dy_mm / mm_per_user_unit;
+    post_transform = Transform2D::translation(dx, dy).then(&post_transform);
+    }
+
+    let options_clone_for_transform = options.clone();
+    let options_for_visitor = options_clone_for_transform.clone();
     let mut conversion_visitor = ConversionVisitor {
         terrarium: Terrarium::new(DpiConvertingTurtle {
             inner: GCodeTurtle {
@@ -158,14 +272,23 @@ pub fn svg2program<'a, 'input: 'a>(
             dpi: config.dpi,
         }),
         _config: config,
-        options,
+    options: options_for_visitor,
         name_stack: vec![],
         viewport_dim_stack: vec![],
     };
 
+    // Compose transforms: apply trim/alignment first, then optional user-specified origin translation.
+    let alignment_requested = options_clone_for_transform.trim || options_clone_for_transform.dimensions.iter().any(|d| d.is_some());
+    let default_origin_requested = config.origin == [Some(0.0), Some(0.0)];
+    let apply_origin = !default_origin_requested && alignment_requested || !alignment_requested; // keep legacy behavior when no alignment/trim, otherwise skip default normalization
+    let combined_transform = if apply_origin {
+        post_transform.then(&origin_transform)
+    } else {
+        post_transform
+    };
     conversion_visitor
         .terrarium
-        .push_transform(origin_transform);
+        .push_transform(combined_transform);
     conversion_visitor.begin();
     visit::depth_first_visit(doc, &mut conversion_visitor);
     conversion_visitor.end();

@@ -152,9 +152,13 @@ impl<'a, T: Turtle> XmlVisitor for ConversionVisitor<'a, T> {
                 });
 
             if let Some(view_box) = view_box {
+                // If we will apply our own alignment (non-default or trim specified), neutralize built-in centering by forcing XMinYMin.
+                let pa = if self.options.trim {
+                    Some(svgtypes::AspectRatio { defer:false, align: svgtypes::Align::XMinYMin, slice:false })
+                } else { preserve_aspect_ratio };
                 let viewport_transform = get_viewport_transform(
                     view_box,
-                    preserve_aspect_ratio,
+                    pa,
                     viewport_size,
                     viewport_pos,
                 );

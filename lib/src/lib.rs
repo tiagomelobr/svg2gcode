@@ -11,7 +11,7 @@ mod postprocess;
 /// This concept is referred to as [Turtle graphics](https://en.wikipedia.org/wiki/Turtle_graphics).
 mod turtle;
 
-pub use converter::{svg2program, ConversionConfig, ConversionOptions};
+pub use converter::{svg2program, ConversionConfig, ConversionOptions, HorizontalAlign, VerticalAlign};
 pub use machine::{Machine, MachineConfig, SupportedFunctionality};
 pub use postprocess::PostprocessConfig;
 pub use turtle::Turtle;

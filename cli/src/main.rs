@@ -68,6 +68,15 @@ struct Opt {
     /// Passing "210mm," or ",297mm" calculates the missing dimension to conform to the viewBox aspect ratio.
     #[arg(long)]
     dimensions: Option<String>,
+    /// Horizontal alignment when using --dimensions (or with --trim)
+    #[arg(long, value_parser = ["left","center","right"].into_iter().collect::<Vec<_>>())]
+    h_align: Option<String>,
+    /// Vertical alignment when using --dimensions (or with --trim)
+    #[arg(long, value_parser = ["top","center","bottom"].into_iter().collect::<Vec<_>>())]
+    v_align: Option<String>,
+    /// Treat --dimensions as target paper size and scale drawing's tight bounding box to fit
+    #[arg(long)]
+    trim: Option<bool>,
     /// Whether to use circular arcs when generating g-code
     ///
     /// Please check if your machine supports G2/G3 commands before enabling this.
@@ -226,7 +235,17 @@ fn main() -> io::Result<()> {
                     dimensions[i] = dimension_origin;
                 });
         }
-        ConversionOptions { dimensions }
+        let h_align = match opt.h_align.as_deref() {
+            Some("center") => svg2gcode::HorizontalAlign::Center,
+            Some("right") => svg2gcode::HorizontalAlign::Right,
+            _ => svg2gcode::HorizontalAlign::Left,
+        };
+        let v_align = match opt.v_align.as_deref() {
+            Some("center") => svg2gcode::VerticalAlign::Center,
+            Some("bottom") => svg2gcode::VerticalAlign::Bottom,
+            _ => svg2gcode::VerticalAlign::Top,
+        };
+        ConversionOptions { dimensions, h_align, v_align, trim: opt.trim.unwrap_or(false) }
     };
 
     let input = match opt.file {
