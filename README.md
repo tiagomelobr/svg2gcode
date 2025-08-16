@@ -204,6 +204,8 @@ See `crates/svg2gcode-wasm/README.md` for details and advanced usage.
 
 When making a change that requires a new WebAssembly package release, follow this exact process to keep versions consistent and reproducible:
 
+For a more detailed, always up-to-date checklist with pitfalls and verification scripts, see `RELEASING.md`.
+
 1. Implement and test your changes locally.
 2. Bump only the WASM crate version in `crates/svg2gcode-wasm/Cargo.toml` (semantic versioning). Example: `0.1.10 -> 0.1.11`.
 3. Run the full build & tests (including examples if relevant):
