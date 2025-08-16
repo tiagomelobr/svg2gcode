@@ -15,6 +15,8 @@ pub struct FormState {
     pub origin: [Option<Result<f64, ParseFloatError>>; 2],
     pub circular_interpolation: bool,
     pub dpi: Result<f64, ParseFloatError>,
+    // Minimum arc radius override (mm); when None derive from tolerance.
+    pub min_arc_radius: Option<Result<f64, ParseFloatError>>,
     pub tool_on_sequence: Option<Result<String, String>>,
     pub tool_off_sequence: Option<Result<String, String>>,
     pub begin_sequence: Option<Result<String, String>>,
@@ -53,6 +55,7 @@ impl<'a> TryInto<Settings> for &'a FormState {
                     self.origin[0].clone().transpose()?,
                     self.origin[1].clone().transpose()?,
                 ],
+        min_arc_radius: self.min_arc_radius.clone().transpose()?,
 		extra_attribute_name: None,
             },
             machine: MachineConfig {
@@ -109,6 +112,7 @@ impl From<&Settings> for FormState {
                 settings.conversion.origin[1].map(Ok),
             ],
             dpi: Ok(settings.conversion.dpi),
+            min_arc_radius: settings.conversion.min_arc_radius.map(Ok),
             tool_on_sequence: settings.machine.tool_on_sequence.clone().map(Ok),
             tool_off_sequence: settings.machine.tool_off_sequence.clone().map(Ok),
             begin_sequence: settings.machine.begin_sequence.clone().map(Ok),

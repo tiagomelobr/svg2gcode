@@ -20,6 +20,10 @@ pub struct ConversionConfig {
     pub origin_x: Option<f64>,
     /// The Y coordinate of the origin in millimeters. Default: 0.0
     pub origin_y: Option<f64>,
+    /// Minimum arc radius (in mm) below which arcs are converted to line segments. If omitted, a
+    /// conservative default derived from tolerance (tolerance * 0.05) is used.
+    #[serde(default)]
+    pub min_arc_radius: Option<f64>,
     /// An extra attribute to include in comments, for debugging. Default: None
     pub extra_attribute_name: Option<String>,
 }
@@ -31,6 +35,7 @@ impl From<ConversionConfig> for CoreConversionConfig {
             feedrate: config.feedrate,
             dpi: config.dpi,
             origin: [config.origin_x, config.origin_y],
+            min_arc_radius: config.min_arc_radius,
             extra_attribute_name: config.extra_attribute_name,
         }
     }
