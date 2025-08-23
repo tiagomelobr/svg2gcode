@@ -124,6 +124,9 @@ fn test_conversion(svg_content: &str, tolerance: f64, min_arc_radius: Option<f64
             origin_y: None,
             min_arc_radius,
             extra_attribute_name: None,
+            detect_polygon_arcs: false,
+            min_polygon_arc_points: 5,
+            polygon_arc_tolerance: None,
         },
         machine: svg2gcode_wasm::MachineConfig {
             circular_interpolation: true,

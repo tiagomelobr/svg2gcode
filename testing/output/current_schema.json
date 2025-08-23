@@ -1,0 +1,170 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GCodeConversionOptions",
+  "type": "object",
+  "required": [
+    "checksums",
+    "circular_interpolation",
+    "dpi",
+    "feedrate",
+    "line_numbers",
+    "newline_before_comment",
+    "tolerance"
+  ],
+  "properties": {
+    "begin_sequence": {
+      "description": "G-Code sequence to run at the beginning of the program. Default: None",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "between_layers_sequence": {
+      "description": "G-Code sequence to run between sibling SVG groups/layers. Default: None",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "checksums": {
+      "description": "Whether to include checksums in the G-Code output. Default: false",
+      "type": "boolean"
+    },
+    "circular_interpolation": {
+      "description": "Whether to use G2/G3 commands for circular interpolation. Default: false",
+      "type": "boolean"
+    },
+    "detect_polygon_arcs": {
+      "description": "Enable arc detection for polygons and polylines. Default: false",
+      "default": false,
+      "type": "boolean"
+    },
+    "dpi": {
+      "description": "Dots per inch for pixels, picas, points, etc. Default: 96.0",
+      "type": "number",
+      "format": "double"
+    },
+    "end_sequence": {
+      "description": "G-Code sequence to run at the end of the program. Default: None",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "extra_attribute_name": {
+      "description": "An extra attribute to include in comments, for debugging. Default: None",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "feedrate": {
+      "description": "Machine feed rate in millimeters/minute. Default: 300.0",
+      "type": "number",
+      "format": "double"
+    },
+    "h_align": {
+      "description": "Horizontal alignment when an override dimension or trim is applied. left|center|right",
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "line_numbers": {
+      "description": "Whether to include line numbers in the G-Code output. Default: false",
+      "type": "boolean"
+    },
+    "min_arc_radius": {
+      "description": "Minimum arc radius (in mm) below which arcs are converted to line segments. If omitted, a conservative default derived from tolerance (tolerance * 0.05) is used.",
+      "default": null,
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "min_polygon_arc_points": {
+      "description": "Minimum number of points required to consider an arc in polygons. Default: 5",
+      "default": 5,
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    },
+    "newline_before_comment": {
+      "description": "Whether to include a newline before comments in the G-Code output. Default: false",
+      "type": "boolean"
+    },
+    "origin_x": {
+      "description": "The X coordinate of the origin in millimeters. Default: 0.0",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "origin_y": {
+      "description": "The Y coordinate of the origin in millimeters. Default: 0.0",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "override_height": {
+      "description": "Optional height override (e.g. \"297mm\").",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "override_width": {
+      "description": "Optional width override (e.g. \"210mm\"). If provided with height and trim=true acts like paper fit.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "polygon_arc_tolerance": {
+      "description": "Maximum deviation tolerance for polygon arc detection (in mm). If omitted, uses the same tolerance as curve fitting.",
+      "default": null,
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "tolerance": {
+      "description": "Curve interpolation tolerance in millimeters. Default: 0.002",
+      "type": "number",
+      "format": "double"
+    },
+    "tool_off_sequence": {
+      "description": "G-Code sequence to turn the tool off. Default: None",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tool_on_sequence": {
+      "description": "G-Code sequence to turn the tool on. Default: None",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "trim": {
+      "description": "If true, scales tight drawing bbox into the override dimensions (paper style fit).",
+      "default": false,
+      "type": "boolean"
+    },
+    "v_align": {
+      "description": "Vertical alignment when an override dimension or trim is applied. top|center|bottom",
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}
