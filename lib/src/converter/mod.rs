@@ -37,10 +37,24 @@ pub struct ConversionConfig {
     pub min_arc_radius: Option<f64>,
     /// Set extra attribute to add when printing node name
     pub extra_attribute_name: Option<String>,
+    /// Enable arc detection for polygons and polylines
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub detect_polygon_arcs: bool,
+    /// Minimum number of points required to consider an arc in polygons
+    #[cfg_attr(feature = "serde", serde(default = "default_min_polygon_arc_points"))]
+    pub min_polygon_arc_points: usize,
+    /// Maximum deviation tolerance for polygon arc detection (in mm)
+    /// If `None`, uses the same tolerance as curve fitting
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub polygon_arc_tolerance: Option<f64>,
 }
 
 const fn zero_origin() -> [Option<f64>; 2] {
     [Some(0.); 2]
+}
+
+const fn default_min_polygon_arc_points() -> usize {
+    5
 }
 
 impl Default for ConversionConfig {
@@ -50,8 +64,11 @@ impl Default for ConversionConfig {
             feedrate: 300.0,
             dpi: 96.0,
             origin: zero_origin(),
-        min_arc_radius: None,
-	    extra_attribute_name : None,
+            min_arc_radius: None,
+            extra_attribute_name: None,
+            detect_polygon_arcs: false,
+            min_polygon_arc_points: default_min_polygon_arc_points(),
+            polygon_arc_tolerance: None,
         }
     }
 }
@@ -266,20 +283,27 @@ pub fn svg2program<'a, 'input: 'a>(
 
     let options_clone_for_transform = options.clone();
     let options_for_visitor = options_clone_for_transform.clone();
+    
+    // Create polygon arc configuration
+    let polygon_arc_config = PolygonArcConfig {
+        enabled: config.detect_polygon_arcs,
+        min_points: config.min_polygon_arc_points,
+        tolerance: config.polygon_arc_tolerance.unwrap_or(config.tolerance),
+    };
+    
     let mut conversion_visitor = ConversionVisitor {
         terrarium: Terrarium::new(DpiConvertingTurtle {
-            inner: GCodeTurtle {
+            inner: GCodeTurtle::new(
                 machine,
-                tolerance: config.tolerance,
-                feedrate: config.feedrate,
-                min_arc_radius: config.min_arc_radius.unwrap_or(config.tolerance * 0.05),
-                program: vec![],
-                pending_between_layers: false,
-            },
+                config.tolerance,
+                config.feedrate,
+                config.min_arc_radius.unwrap_or(config.tolerance * 0.05),
+                polygon_arc_config,
+            ),
             dpi: config.dpi,
         }),
         _config: config,
-    options: options_for_visitor,
+        options: options_for_visitor,
         name_stack: vec![],
         viewport_dim_stack: vec![],
     };

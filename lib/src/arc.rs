@@ -410,3 +410,220 @@ mod tests {
         }
     }
 }
+
+/// Detects circular arcs in sequences of line segments (for polygon/polyline arc detection)
+pub fn detect_polygon_arcs<S>(
+    points: &[Point<S>],
+    tolerance: S,
+    min_points: usize,
+) -> Vec<ArcOrLineSegment<S>>
+where
+    S: Scalar + Copy,
+{
+    if points.len() < 2 {
+        return vec![];
+    }
+
+    let mut result = Vec::new();
+    let mut i = 0;
+
+    while i < points.len() - 1 {
+        // Try to detect an arc starting from point i
+        if let Some((arc_length, svg_arc)) = detect_arc_starting_at(points, i, tolerance, min_points) {
+            result.push(ArcOrLineSegment::Arc(svg_arc));
+            i += arc_length;
+        } else {
+            // No arc found, emit a line segment
+            result.push(ArcOrLineSegment::Line(LineSegment {
+                from: points[i],
+                to: points[i + 1],
+            }));
+            i += 1;
+        }
+    }
+
+    result
+}
+
+/// Attempts to detect a circular arc starting from the given index
+fn detect_arc_starting_at<S>(
+    points: &[Point<S>],
+    start_idx: usize,
+    tolerance: S,
+    min_points: usize,
+) -> Option<(usize, SvgArc<S>)>
+where
+    S: Scalar + Copy,
+{
+    if start_idx + min_points > points.len() {
+        return None;
+    }
+
+    // Try increasingly longer sequences starting from min_points
+    for end_idx in (start_idx + min_points)..=points.len() {
+        let segment = &points[start_idx..end_idx];
+        
+        if let Some(circle) = fit_circle_to_points(segment, tolerance) {
+            // Create an SvgArc from the first to last point
+            if let Some(svg_arc) = create_svg_arc_from_circle(
+                segment[0],
+                segment[segment.len() - 1],
+                circle,
+            ) {
+                return Some((end_idx - start_idx - 1, svg_arc));
+            }
+        } else {
+            // If we can't fit a circle to this sequence, 
+            // try the previous shorter sequence if it was valid
+            if end_idx > start_idx + min_points {
+                let prev_segment = &points[start_idx..(end_idx - 1)];
+                if let Some(circle) = fit_circle_to_points(prev_segment, tolerance) {
+                    if let Some(svg_arc) = create_svg_arc_from_circle(
+                        prev_segment[0],
+                        prev_segment[prev_segment.len() - 1],
+                        circle,
+                    ) {
+                        return Some((end_idx - start_idx - 2, svg_arc));
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    None
+}
+
+/// Simple circle representation
+#[derive(Debug, Clone, Copy)]
+struct Circle<S> {
+    center: Point<S>,
+    radius: S,
+}
+
+/// Fits a circle to a sequence of points using least squares approach
+fn fit_circle_to_points<S>(points: &[Point<S>], tolerance: S) -> Option<Circle<S>>
+where
+    S: Scalar + Copy,
+{
+    if points.len() < 3 {
+        return None;
+    }
+
+    // Use the first three points to get an initial circle
+    let initial_circle = circle_from_three_points(points[0], points[1], points[2])?;
+    
+    // Reject very small circles - they're likely noise or nearly straight lines
+    let min_radius = tolerance * S::from(10.0).unwrap();
+    if initial_circle.radius < min_radius {
+        return None;
+    }
+
+    // Check if all points lie on this circle within tolerance
+    let mut max_deviation = S::ZERO;
+    for &point in points.iter() {
+        let deviation = ((point - initial_circle.center).length() - initial_circle.radius).abs();
+        if deviation > max_deviation {
+            max_deviation = deviation;
+        }
+    }
+
+    if max_deviation <= tolerance {
+        Some(initial_circle)
+    } else {
+        None
+    }
+}
+
+/// Calculates circle from three points using circumcenter formula
+fn circle_from_three_points<S>(p1: Point<S>, p2: Point<S>, p3: Point<S>) -> Option<Circle<S>>
+where
+    S: Scalar + Copy,
+{
+    let a = p2 - p1;
+    let b = p3 - p1;
+
+    // Check if points are collinear (cross product is zero)
+    let cross = a.x * b.y - a.y * b.x;
+    if cross.abs() < S::EPSILON {
+        return None;
+    }
+
+    // Calculate circumcenter using perpendicular bisectors
+    let a_len_sq = a.square_length();
+    let b_len_sq = b.square_length();
+    let two_cross = cross * S::from(2.0).unwrap();
+
+    let center = Point::new(
+        p1.x + (b.y * a_len_sq - a.y * b_len_sq) / two_cross,
+        p1.y + (a.x * b_len_sq - b.x * a_len_sq) / two_cross,
+    );
+
+    let radius = (center - p1).length();
+
+    Some(Circle { center, radius })
+}
+
+/// Creates an SvgArc from endpoints and circle parameters
+fn create_svg_arc_from_circle<S>(
+    from: Point<S>,
+    to: Point<S>,
+    circle: Circle<S>,
+) -> Option<SvgArc<S>>
+where
+    S: Scalar + Copy,
+{
+    // Check for degenerate cases
+    let chord_length = (to - from).length();
+    if chord_length < S::EPSILON || circle.radius < S::EPSILON {
+        return None;
+    }
+    
+    // Check if points are too close to the center (would create invalid arc)
+    let from_to_center = (from - circle.center).length();
+    let to_to_center = (to - circle.center).length();
+    if (from_to_center - circle.radius).abs() > circle.radius * S::from(0.1).unwrap() ||
+       (to_to_center - circle.radius).abs() > circle.radius * S::from(0.1).unwrap() {
+        return None;
+    }
+
+    // Calculate vectors from center to endpoints
+    let from_vec = (from - circle.center).normalize();
+    let to_vec = (to - circle.center).normalize();
+
+    // Calculate the sweep angle using cross product and dot product
+    let cross = from_vec.x * to_vec.y - from_vec.y * to_vec.x;
+    let dot = from_vec.dot(to_vec);
+    let angle = cross.atan2(dot);
+
+    // Reject very small angles (nearly straight lines)
+    if angle.abs() < S::from(0.01).unwrap() {
+        return None;
+    }
+    
+    // Reject if the chord is nearly equal to diameter (semicircle or larger)
+    // This can be numerically unstable
+    if chord_length > circle.radius * S::from(1.9).unwrap() {
+        return None;
+    }
+
+    let flags = ArcFlags {
+        large_arc: angle.abs() >= S::PI(),
+        sweep: angle.is_sign_positive(),
+    };
+
+    let svg_arc = SvgArc {
+        from,
+        to,
+        radii: Vector::splat(circle.radius),
+        x_rotation: Angle::zero(),
+        flags,
+    };
+    
+    // Final check: verify this isn't considered a straight line by Lyon
+    if svg_arc.is_straight_line() {
+        return None;
+    }
+
+    Some(svg_arc)
+}

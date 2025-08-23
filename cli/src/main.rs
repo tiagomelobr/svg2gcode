@@ -82,6 +82,20 @@ struct Opt {
     /// Please check if your machine supports G2/G3 commands before enabling this.
     #[arg(long)]
     circular_interpolation: Option<bool>,
+    /// Enable arc detection for polygons and polylines
+    ///
+    /// When enabled, sequences of line segments in polygons/polylines are analyzed
+    /// for circular patterns and converted to G2/G3 commands when possible.
+    #[arg(long, action = clap::ArgAction::SetTrue)]
+    detect_polygon_arcs: bool,
+    /// Minimum number of points required to consider an arc in polygons
+    #[arg(long)]
+    min_polygon_arc_points: Option<usize>,
+    /// Maximum deviation tolerance for polygon arc detection (mm)
+    ///
+    /// If not specified, uses the same tolerance as curve fitting.
+    #[arg(long)]
+    polygon_arc_tolerance: Option<f64>,
 
     #[arg(long)]
     /// Include line numbers at the beginning of each line
@@ -125,6 +139,11 @@ fn main() -> io::Result<()> {
             conversion.dpi = opt.dpi.unwrap_or(conversion.dpi);
             conversion.feedrate = opt.feedrate.unwrap_or(conversion.feedrate);
             conversion.tolerance = opt.tolerance.unwrap_or(conversion.tolerance);
+            conversion.detect_polygon_arcs = opt.detect_polygon_arcs;
+            conversion.min_polygon_arc_points = opt.min_polygon_arc_points.unwrap_or(conversion.min_polygon_arc_points);
+            if let Some(tolerance) = opt.polygon_arc_tolerance {
+                conversion.polygon_arc_tolerance = Some(tolerance);
+            }
         }
         {
             let machine = &mut settings.machine;

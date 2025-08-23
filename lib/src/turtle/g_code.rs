@@ -5,7 +5,7 @@ use ::g_code::{command, emit::Token};
 use lyon_geom::{CubicBezierSegment, Point, QuadraticBezierSegment, SvgArc};
 
 use super::Turtle;
-use crate::arc::{ArcOrLineSegment, FlattenWithArcs};
+use crate::arc::{detect_polygon_arcs, ArcOrLineSegment, FlattenWithArcs};
 use crate::machine::Machine;
 
 /// Maps path segments into g-code operations
@@ -18,9 +18,109 @@ pub struct GCodeTurtle<'input> {
     pub program: Vec<Token<'input>>,
     // When true, emit the user between-layers sequence right before the next tool_on
     pub pending_between_layers: bool,
+    // Polygon arc detection configuration
+    pub polygon_arc_config: PolygonArcConfig,
+    // Buffer for line segments to enable polygon arc detection
+    line_buffer: Vec<Point<f64>>,
+}
+
+/// Configuration for polygon arc detection
+#[derive(Debug, Clone)]
+pub struct PolygonArcConfig {
+    pub enabled: bool,
+    pub min_points: usize,
+    pub tolerance: f64,
 }
 
 impl<'input> GCodeTurtle<'input> {
+    /// Create a new GCodeTurtle with polygon arc detection configuration
+    pub fn new(
+        machine: Machine<'input>,
+        tolerance: f64,
+        feedrate: f64,
+        min_arc_radius: f64,
+        polygon_arc_config: PolygonArcConfig,
+    ) -> Self {
+        Self {
+            machine,
+            tolerance,
+            feedrate,
+            min_arc_radius,
+            program: Vec::new(),
+            pending_between_layers: false,
+            polygon_arc_config,
+            line_buffer: Vec::new(),
+        }
+    }
+
+    /// Flush the line buffer, analyzing for arcs and generating appropriate G-code
+    fn flush_line_buffer(&mut self) {
+        if self.line_buffer.is_empty() {
+            return;
+        }
+
+        if self.polygon_arc_config.enabled
+            && self.line_buffer.len() >= self.polygon_arc_config.min_points
+            && self
+                .machine
+                .supported_functionality()
+                .circular_interpolation
+        {
+            // Analyze buffer for arcs
+            let segments = detect_polygon_arcs(
+                &self.line_buffer,
+                self.polygon_arc_config.tolerance,
+                self.polygon_arc_config.min_points,
+            );
+
+            for segment in segments {
+                match segment {
+                    ArcOrLineSegment::Arc(arc) => {
+                        // Double-check that this arc is valid and meets our requirements
+                        if !arc.is_straight_line() && 
+                           arc.radii.x >= self.min_arc_radius &&
+                           arc.radii.y >= self.min_arc_radius {
+                            self.program.append(&mut self.circular_interpolation(arc));
+                        } else {
+                            // Arc is invalid or too small, emit as line
+                            self.program.append(
+                                &mut command!(LinearInterpolation {
+                                    X: arc.to.x,
+                                    Y: arc.to.y,
+                                    F: self.feedrate,
+                                })
+                                .into_token_vec(),
+                            );
+                        }
+                    }
+                    ArcOrLineSegment::Line(line) => {
+                        self.program.append(
+                            &mut command!(LinearInterpolation {
+                                X: line.to.x,
+                                Y: line.to.y,
+                                F: self.feedrate,
+                            })
+                            .into_token_vec(),
+                        );
+                    }
+                }
+            }
+        } else {
+            // No arc detection or insufficient points - emit all as lines
+            for point in self.line_buffer.iter().skip(1) {
+                self.program.append(
+                    &mut command!(LinearInterpolation {
+                        X: point.x,
+                        Y: point.y,
+                        F: self.feedrate,
+                    })
+                    .into_token_vec(),
+                );
+            }
+        }
+
+        self.line_buffer.clear();
+    }
     fn circular_interpolation(&self, svg_arc: SvgArc<f64>) -> Vec<Token<'input>> {
         debug_assert!((svg_arc.radii.x.abs() - svg_arc.radii.y.abs()).abs() < f64::EPSILON);
         // Geometry helpers
@@ -107,6 +207,8 @@ impl<'input> Turtle for GCodeTurtle<'input> {
     }
 
     fn end(&mut self) {
+        // Flush any remaining line buffer
+        self.flush_line_buffer();
         self.program.extend(self.machine.tool_off());
         self.program.extend(self.machine.absolute());
         self.program.extend(self.machine.program_end());
@@ -125,24 +227,55 @@ impl<'input> Turtle for GCodeTurtle<'input> {
     }
 
     fn move_to(&mut self, to: Point<f64>) {
+        // Flush any pending line buffer before moving
+        self.flush_line_buffer();
         self.tool_off();
         self.program
             .append(&mut command!(RapidPositioning { X: to.x, Y: to.y }).into_token_vec());
+        
+        // Start new buffer with the move destination
+        self.line_buffer.clear();
+        self.line_buffer.push(to);
     }
 
     fn line_to(&mut self, to: Point<f64>) {
         self.tool_on();
-        self.program.append(
-            &mut command!(LinearInterpolation {
-                X: to.x,
-                Y: to.y,
-                F: self.feedrate,
-            })
-            .into_token_vec(),
-        );
+        
+        if self.polygon_arc_config.enabled {
+            // If buffer is empty, we need to track the starting position
+            if self.line_buffer.is_empty() {
+                // This should be the current position, but we need to get it somehow
+                // For now, we'll use the 'to' point as both start and end if buffer is empty
+                self.line_buffer.push(to);
+            }
+            
+            // Add point to buffer for potential arc detection
+            self.line_buffer.push(to);
+            
+            // Flush buffer if it gets too large to prevent memory issues
+            const MAX_BUFFER_SIZE: usize = 1000;
+            if self.line_buffer.len() > MAX_BUFFER_SIZE {
+                self.flush_line_buffer();
+                // Keep the last point as start of new buffer
+                self.line_buffer.push(to);
+            }
+        } else {
+            // Direct line generation (original behavior)
+            self.program.append(
+                &mut command!(LinearInterpolation {
+                    X: to.x,
+                    Y: to.y,
+                    F: self.feedrate,
+                })
+                .into_token_vec(),
+            );
+        }
     }
 
     fn arc(&mut self, svg_arc: SvgArc<f64>) {
+        // Flush line buffer before processing arc
+        self.flush_line_buffer();
+        
         if svg_arc.is_straight_line() {
             self.line_to(svg_arc.to);
             return;
@@ -174,6 +307,9 @@ impl<'input> Turtle for GCodeTurtle<'input> {
     }
 
     fn cubic_bezier(&mut self, cbs: CubicBezierSegment<f64>) {
+        // Flush line buffer before processing bezier
+        self.flush_line_buffer();
+        
         self.tool_on();
 
         if self

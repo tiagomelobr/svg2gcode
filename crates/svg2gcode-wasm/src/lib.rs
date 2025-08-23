@@ -8,6 +8,10 @@ use svg2gcode::{
 };
 use wasm_bindgen::prelude::*;
 
+fn default_min_polygon_arc_points() -> usize {
+    5
+}
+
 #[derive(Deserialize, Serialize, JsonSchema)]
 pub struct ConversionConfig {
     /// Curve interpolation tolerance in millimeters. Default: 0.002
@@ -26,6 +30,15 @@ pub struct ConversionConfig {
     pub min_arc_radius: Option<f64>,
     /// An extra attribute to include in comments, for debugging. Default: None
     pub extra_attribute_name: Option<String>,
+    /// Enable arc detection for polygons and polylines. Default: false
+    #[serde(default)]
+    pub detect_polygon_arcs: bool,
+    /// Minimum number of points required to consider an arc in polygons. Default: 5
+    #[serde(default = "default_min_polygon_arc_points")]
+    pub min_polygon_arc_points: usize,
+    /// Maximum deviation tolerance for polygon arc detection (in mm). If omitted, uses the same tolerance as curve fitting.
+    #[serde(default)]
+    pub polygon_arc_tolerance: Option<f64>,
 }
 
 impl From<ConversionConfig> for CoreConversionConfig {
@@ -37,6 +50,9 @@ impl From<ConversionConfig> for CoreConversionConfig {
             origin: [config.origin_x, config.origin_y],
             min_arc_radius: config.min_arc_radius,
             extra_attribute_name: config.extra_attribute_name,
+            detect_polygon_arcs: config.detect_polygon_arcs,
+            min_polygon_arc_points: config.min_polygon_arc_points,
+            polygon_arc_tolerance: config.polygon_arc_tolerance,
         }
     }
 }

@@ -11,7 +11,7 @@ mod dpi;
 mod g_code;
 mod preprocess;
 pub use self::dpi::DpiConvertingTurtle;
-pub use self::g_code::GCodeTurtle;
+pub use self::g_code::{GCodeTurtle, PolygonArcConfig};
 pub use self::preprocess::PreprocessTurtle;
 
 /// Abstraction for drawing paths based on [Turtle graphics](https://en.wikipedia.org/wiki/Turtle_graphics)

@@ -7,7 +7,17 @@ fn main() {
 </svg>"#;
     let doc = roxmltree::Document::parse(svg).unwrap();
     let mut settings = Settings::default();
-    settings.conversion = ConversionConfig { tolerance: 0.002, feedrate: 300.0, dpi: 96.0, origin: [None,None], min_arc_radius: None, extra_attribute_name: None };
+    settings.conversion = ConversionConfig { 
+        tolerance: 0.002, 
+        feedrate: 300.0, 
+        dpi: 96.0, 
+        origin: [None,None], 
+        min_arc_radius: None, 
+        extra_attribute_name: None,
+        detect_polygon_arcs: false,
+        min_polygon_arc_points: 5,
+        polygon_arc_tolerance: None,
+    };
     settings.machine = MachineConfig {
         supported_functionality: SupportedFunctionality { circular_interpolation: false },
         tool_on_sequence: Some("M3".into()),

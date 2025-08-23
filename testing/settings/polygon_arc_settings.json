@@ -1,0 +1,29 @@
+{
+  "conversion": {
+    "tolerance": 0.02,
+    "feedrate": 3000.0,
+    "dpi": 96.0,
+    "origin": [0.0, 0.0],
+    "min_arc_radius": 0.001,
+    "extra_attribute_name": null,
+    "detect_polygon_arcs": true,
+    "min_polygon_arc_points": 5,
+    "polygon_arc_tolerance": 0.001
+  },
+  "machine": {
+    "supported_functionality": {
+      "circular_interpolation": true
+    },
+    "tool_on_sequence": "G4 P0.05\nG1 Z1\nG4 P0.05",
+    "tool_off_sequence": "G4 P0.05\nG1 Z0\nG4 P0.2",
+    "begin_sequence": "; Document Start\nG21\nG17\nG90\nF10000\nG0 Z0\nG4 P0.2\nG0 X0 Y0",
+    "end_sequence": "; END\nG0 Z0\nG4 P0.2\nG0 X0 Y0 F10000",
+    "between_layers_sequence": "M0"
+  },
+  "postprocess": {
+    "line_numbers": false,
+    "checksums": false,
+    "newline_before_comment": true
+  },
+  "version": "V5"
+}

@@ -1,0 +1,26 @@
+{
+  "conversion": {
+    "tolerance": 0.002,
+    "feedrate": 300.0,
+    "dpi": 96.0,
+    "origin_x": 0.0,
+    "origin_y": 0.0,
+    "detect_polygon_arcs": true,
+    "min_polygon_arc_points": 5,
+    "polygon_arc_tolerance": 0.001
+  },
+  "machine": {
+    "supported_functionality": {
+      "circular_interpolation": true
+    },
+    "tool_on_sequence": "M3 S1000",
+    "tool_off_sequence": "M5",
+    "begin_sequence": "G21 G90 G17\nG0 Z5",
+    "end_sequence": "G0 Z5\nM30"
+  },
+  "postprocess": {
+    "checksums": false,
+    "line_numbers": false,
+    "newline_before_comment": false
+  }
+}
